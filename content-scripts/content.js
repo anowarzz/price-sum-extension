@@ -12,11 +12,27 @@ function handlePriceInputChange(event) {
 
 // Function to calculate totals from all price inputs
 function calculateTotals() {
-  const priceInputs = document.querySelectorAll('input[data-type="price"].price');
+  const priceInputs = document.querySelectorAll(
+    'input[data-type="price"].price'
+  );
+
+  // If no explicitly marked price fields are found, try to intelligently identify price fields
+  if (priceInputs.length === 0) {
+    // Look for inputs with price-related attributes or context
+    priceInputs = document.querySelectorAll(`
+      input[data-type="price"], 
+      input.price,
+      input[type="number"][name*="price"], 
+      input[type="text"][name*="price"],
+      input[type="number"][id*="price"], 
+      input[type="text"][id*="price"],
+    `);
+  }
+
   let sum = 0;
   let count = 0;
 
-  priceInputs.forEach(input => {
+  priceInputs.forEach((input) => {
     const value = parseFloat(input.value);
     if (!isNaN(value)) {
       sum += value;
@@ -29,11 +45,11 @@ function calculateTotals() {
 
   // Update the floating display
   updateFloatingDisplay();
-  
+
   // Send data to popup if needed
   chrome.runtime.sendMessage({
     action: "updateTotals",
-    data: { sum: totalSum.toFixed(2), count: itemCount }
+    data: { sum: totalSum.toFixed(2), count: itemCount },
   });
 }
 
@@ -41,7 +57,7 @@ function calculateTotals() {
 function createFloatingDisplay() {
   displayDiv = document.createElement("div");
   displayDiv.id = "price-sum-display";
-  
+
   // Apply enhanced styling
   Object.assign(displayDiv.style, {
     position: "fixed",
@@ -57,15 +73,15 @@ function createFloatingDisplay() {
     fontFamily: "'Segoe UI', Arial, sans-serif",
     cursor: "move",
     transition: "box-shadow 0.2s ease",
-    minWidth: "180px"
+    minWidth: "180px",
   });
 
   // Add hover effect
-  displayDiv.addEventListener('mouseover', () => {
+  displayDiv.addEventListener("mouseover", () => {
     displayDiv.style.boxShadow = "0 6px 16px rgba(0,0,0,0.2)";
   });
-  
-  displayDiv.addEventListener('mouseout', () => {
+
+  displayDiv.addEventListener("mouseout", () => {
     displayDiv.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
   });
 
@@ -84,7 +100,7 @@ function createFloatingDisplay() {
   // Add minimize/maximize button
   const toggleBtn = document.createElement("button");
   toggleBtn.textContent = "−";
-  
+
   Object.assign(toggleBtn.style, {
     position: "absolute",
     top: "8px",
@@ -102,96 +118,96 @@ function createFloatingDisplay() {
     justifyContent: "center",
     padding: "0",
     lineHeight: "1",
-    borderRadius: "4px"
+    borderRadius: "4px",
   });
-  
-  toggleBtn.addEventListener('mouseover', () => {
+
+  toggleBtn.addEventListener("mouseover", () => {
     toggleBtn.style.backgroundColor = "#f3f4f6";
   });
-  
-  toggleBtn.addEventListener('mouseout', () => {
+
+  toggleBtn.addEventListener("mouseout", () => {
     toggleBtn.style.backgroundColor = "transparent";
   });
-  
+
   let minimized = false;
-  const content = document.createElement('div');
-  content.id = 'price-sum-content';
+  const content = document.createElement("div");
+  content.id = "price-sum-content";
   content.innerHTML = displayDiv.innerHTML;
-  displayDiv.innerHTML = '';
-  
+  displayDiv.innerHTML = "";
+
   // Add heading for minimized state
-  const heading = document.createElement('div');
+  const heading = document.createElement("div");
   heading.style.fontWeight = "600";
   heading.style.color = "#4b5563";
   heading.style.fontSize = "15px";
   heading.style.paddingRight = "20px";
   heading.textContent = "Receipt Summary";
-  
+
   displayDiv.appendChild(heading);
   displayDiv.appendChild(toggleBtn);
   displayDiv.appendChild(content);
-  
-  toggleBtn.addEventListener('click', (e) => {
+
+  toggleBtn.addEventListener("click", (e) => {
     e.stopPropagation(); // Prevent dragging when clicking the button
     minimized = !minimized;
-    content.style.display = minimized ? 'none' : 'block';
+    content.style.display = minimized ? "none" : "block";
     toggleBtn.textContent = minimized ? "+" : "−";
-    heading.style.display = minimized ? 'block' : 'none';
-    displayDiv.style.width = minimized ? 'auto' : '';
+    heading.style.display = minimized ? "block" : "none";
+    displayDiv.style.width = minimized ? "auto" : "";
   });
-  
+
   // Hide heading initially
-  heading.style.display = 'none';
-  
+  heading.style.display = "none";
+
   // Make the display draggable
   let isDragging = false;
   let offsetX, offsetY;
 
-  displayDiv.addEventListener('mousedown', (e) => {
+  displayDiv.addEventListener("mousedown", (e) => {
     // Ignore if clicking on the toggle button
     if (e.target === toggleBtn) return;
-    
+
     isDragging = true;
     offsetX = e.clientX - displayDiv.getBoundingClientRect().left;
     offsetY = e.clientY - displayDiv.getBoundingClientRect().top;
-    
+
     // Add active dragging style
-    displayDiv.style.opacity = '0.92';
+    displayDiv.style.opacity = "0.92";
   });
 
-  document.addEventListener('mousemove', (e) => {
+  document.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
-    
+
     const x = e.clientX - offsetX;
     const y = e.clientY - offsetY;
-    
+
     // Ensure it stays within the viewport
     const maxX = window.innerWidth - displayDiv.offsetWidth;
     const maxY = window.innerHeight - displayDiv.offsetHeight;
-    
-    displayDiv.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
-    displayDiv.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
-    
+
+    displayDiv.style.left = Math.max(0, Math.min(x, maxX)) + "px";
+    displayDiv.style.top = Math.max(0, Math.min(y, maxY)) + "px";
+
     // Remove the right/bottom positioning when manually positioned
-    displayDiv.style.right = 'auto';
-    displayDiv.style.bottom = 'auto';
+    displayDiv.style.right = "auto";
+    displayDiv.style.bottom = "auto";
   });
 
-  document.addEventListener('mouseup', () => {
+  document.addEventListener("mouseup", () => {
     if (isDragging) {
-      displayDiv.style.opacity = '1';
+      displayDiv.style.opacity = "1";
       isDragging = false;
     }
   });
-  
+
   document.body.appendChild(displayDiv);
 }
 
 // Update the floating display with new totals
 function updateFloatingDisplay() {
-  const countElement = document.getElementById('item-count');
-  const totalElement = document.getElementById('price-total');
-  
+  const countElement = document.getElementById("item-count");
+  const totalElement = document.getElementById("price-total");
+
   if (countElement && totalElement) {
     countElement.textContent = itemCount;
     totalElement.textContent = totalSum.toFixed(2);
@@ -202,43 +218,47 @@ function updateFloatingDisplay() {
 function initPriceTracking() {
   // Create the floating display
   createFloatingDisplay();
-  
+
   // Add event listeners to existing price inputs
-  const priceInputs = document.querySelectorAll('input[data-type="price"].price');
-  priceInputs.forEach(input => {
-    input.addEventListener('input', handlePriceInputChange);
-    input.addEventListener('change', handlePriceInputChange);
+  const priceInputs = document.querySelectorAll(
+    'input[data-type="price"].price'
+  );
+  priceInputs.forEach((input) => {
+    input.addEventListener("input", handlePriceInputChange);
+    input.addEventListener("change", handlePriceInputChange);
   });
-  
+
   // Set up mutation observer to detect new price inputs
-  const observer = new MutationObserver(mutations => {
-    mutations.forEach(mutation => {
-      if (mutation.type === 'childList') {
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === "childList") {
         const newInputs = mutation.addedNodes;
-        newInputs.forEach(node => {
-          if (node.nodeType === 1) { // ELEMENT_NODE
-            const inputs = node.querySelectorAll ? 
-              node.querySelectorAll('input[data-type="price"].price') : [];
-            
-            inputs.forEach(input => {
-              input.addEventListener('input', handlePriceInputChange);
-              input.addEventListener('change', handlePriceInputChange);
+        newInputs.forEach((node) => {
+          if (node.nodeType === 1) {
+            // ELEMENT_NODE
+            const inputs = node.querySelectorAll
+              ? node.querySelectorAll('input[data-type="price"].price')
+              : [];
+
+            inputs.forEach((input) => {
+              input.addEventListener("input", handlePriceInputChange);
+              input.addEventListener("change", handlePriceInputChange);
             });
           }
         });
       }
     });
-    
+
     // Recalculate after DOM changes
     calculateTotals();
   });
-  
+
   // Start observing the document
-  observer.observe(document.body, { 
+  observer.observe(document.body, {
     childList: true,
-    subtree: true
+    subtree: true,
   });
-  
+
   // Calculate initial totals
   calculateTotals();
 }
@@ -250,16 +270,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({
       data: {
         sum: totalSum.toFixed(2),
-        count: itemCount
-      }
+        count: itemCount,
+      },
     });
   }
   return true; // Required for asynchronous response
 });
 
 // Start the script when the page is fully loaded
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initPriceTracking);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initPriceTracking);
 } else {
   initPriceTracking();
 }
