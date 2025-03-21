@@ -96,7 +96,7 @@ function isPriceField(input) {
     (input.placeholder.includes("price") ||
       input.placeholder.includes("Price") ||
       input.placeholder.includes("PRICE") 
-      )
+   )
   ) {
     return true;
   }
@@ -171,8 +171,8 @@ function calculateTotals() {
           input.placeholder &&
           (input.placeholder.includes("price") ||
             input.placeholder.includes("Price") ||
-            input.placeholder.includes("PRICE")
-            )
+            input.placeholder.includes("PRICE") 
+       )
         ) {
           priceInputs.push(input);
           return;
@@ -252,60 +252,7 @@ function handleExtensionInvalidated() {
   }
 }
 
-// Function to detect if page is in dark mode
-function detectDarkMode() {
-  try {
-    // Method 1: Check for CSS media query support
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return true;
-    }
-    
-    // Method 2: Check background color of body or html element
-    const bodyBg = getComputedStyle(document.body).backgroundColor;
-    const htmlBg = getComputedStyle(document.documentElement).backgroundColor;
-    
-    // Convert RGB to brightness (basic luminance)
-    const getColorBrightness = (color) => {
-      // Extract RGB values
-      const rgb = color.match(/\d+/g);
-      if (!rgb || rgb.length < 3) return 255; // Default to bright if can't parse
-      
-      // Calculate brightness using perceived luminance formula
-      return (parseInt(rgb[0]) * 0.299 + parseInt(rgb[1]) * 0.587 + parseInt(rgb[2]) * 0.114);
-    };
-    
-    const bodyBrightness = getColorBrightness(bodyBg);
-    const htmlBrightness = getColorBrightness(htmlBg);
-    
-    // If either body or html has a dark background, consider it dark mode
-    if (bodyBrightness < 128 || htmlBrightness < 128) {
-      return true;
-    }
-    
-    // Method 3: Check if most text is light-colored (indicating dark background)
-    const paragraphs = document.querySelectorAll('p');
-    if (paragraphs.length > 0) {
-      let lightTextCount = 0;
-      
-      for (let i = 0; i < Math.min(paragraphs.length, 5); i++) {
-        const color = getComputedStyle(paragraphs[i]).color;
-        const brightness = getColorBrightness(color);
-        if (brightness > 128) lightTextCount++;
-      }
-      
-      if (lightTextCount >= Math.min(paragraphs.length, 5) / 2) {
-        return true;
-      }
-    }
-    
-    return false;
-  } catch (e) {
-    console.log("Error detecting dark mode:", e);
-    return false; // Default to light mode on error
-  }
-}
-
-// Create and update floating display
+// Create and update floating display with a design that works in both light and dark modes
 function createFloatingDisplay() {
   if (!extensionActive) return;
   
@@ -313,23 +260,20 @@ function createFloatingDisplay() {
   if (displayDiv) return;
   
   try {
-    // Check if the page is in dark mode
-    const isDarkMode = detectDarkMode();
-    
     displayDiv = document.createElement("div");
     displayDiv.id = "price-sum-display";
 
-    // Apply enhanced styling with dark mode awareness
+    // Apply styling that works in both light and dark modes
     Object.assign(displayDiv.style, {
       position: "fixed",
       bottom: "20px",
       right: "20px",
-      backgroundColor: isDarkMode ? "#2d3748" : "#ffffff",
-      color: isDarkMode ? "#e2e8f0" : "#333333",
-      border: isDarkMode ? "1px solid #4a5568" : "1px solid #d1d5db",
+      backgroundColor: "#3b82f6", // Blue background that works in both modes
+      color: "white",             // White text for good contrast
+      border: "1px solid rgba(255,255,255,0.2)",
       borderRadius: "8px",
       padding: "12px",
-      boxShadow: isDarkMode ? "0 4px 12px rgba(0,0,0,0.3)" : "0 4px 12px rgba(0,0,0,0.15)",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
       zIndex: "9999",
       fontSize: "14px",
       fontFamily: "'Segoe UI', Arial, sans-serif",
@@ -342,33 +286,23 @@ function createFloatingDisplay() {
     // Add hover effect
     displayDiv.addEventListener("mouseover", () => {
       if (!extensionActive) return;
-      displayDiv.style.boxShadow = isDarkMode ? 
-        "0 6px 16px rgba(0,0,0,0.4)" : 
-        "0 6px 16px rgba(0,0,0,0.2)";
+      displayDiv.style.boxShadow = "0 6px 16px rgba(0,0,0,0.35)";
     });
 
     displayDiv.addEventListener("mouseout", () => {
       if (!extensionActive) return;
-      displayDiv.style.boxShadow = isDarkMode ? 
-        "0 4px 12px rgba(0,0,0,0.3)" : 
-        "0 4px 12px rgba(0,0,0,0.15)";
+      displayDiv.style.boxShadow = "0 4px 12px rgba(0,0,0,0.25)";
     });
 
-    // Updated HTML with dark mode aware styling
-    const titleColor = isDarkMode ? "#e2e8f0" : "#4b5563";
-    const borderColor = isDarkMode ? "#4a5568" : "#e5e7eb";
-    const labelColor = isDarkMode ? "#a0aec0" : "#4b5563";
-    const valueColor = isDarkMode ? "#90cdf4" : "#1e40af";
-
     displayDiv.innerHTML = `
-      <div style="margin-bottom: 8px; font-weight: 600; color: ${titleColor}; border-bottom: 1px solid ${borderColor}; padding-bottom: 6px; font-size: 15px;">Receipt Summary</div>
+      <div style="margin-bottom: 8px; font-weight: 600; color: white; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 6px; font-size: 15px;">Receipt Summary</div>
       <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-        <span style="color: ${labelColor};">Items:</span>
-        <span id="item-count" style="font-weight: 500; color: ${isDarkMode ? "#e2e8f0" : "inherit"}">0</span>
+        <span style="color: rgba(255,255,255,0.85);">Items:</span>
+        <span id="item-count" style="font-weight: 500; color: white">0</span>
       </div>
-      <div style="display: flex; justify-content: space-between; padding-top: 4px; border-top: 1px dashed ${borderColor}; margin-top: 4px;">
-        <span style="color: ${labelColor};">Total:</span>
-        <span style="font-weight: 700; color: ${valueColor};">$<span id="price-total">0.00</span></span>
+      <div style="display: flex; justify-content: space-between; padding-top: 4px; border-top: 1px dashed rgba(255,255,255,0.3); margin-top: 4px;">
+        <span style="color: rgba(255,255,255,0.85);">Total:</span>
+        <span style="font-weight: 700; color: white;">$<span id="price-total">0.00</span></span>
       </div>
     `;
 
@@ -381,10 +315,10 @@ function createFloatingDisplay() {
       top: "8px",
       right: "8px",
       border: "none",
-      background: "none",
+      background: "rgba(255,255,255,0.2)",
+      color: "white",
       cursor: "pointer",
       fontSize: "16px",
-      color: isDarkMode ? "#a0aec0" : "#6b7280",
       fontWeight: "bold",
       width: "20px",
       height: "20px",
@@ -398,12 +332,12 @@ function createFloatingDisplay() {
 
     toggleBtn.addEventListener("mouseover", () => {
       if (!extensionActive) return;
-      toggleBtn.style.backgroundColor = isDarkMode ? "#3a4559" : "#f3f4f6";
+      toggleBtn.style.backgroundColor = "rgba(255,255,255,0.3)";
     });
 
     toggleBtn.addEventListener("mouseout", () => {
       if (!extensionActive) return;
-      toggleBtn.style.backgroundColor = "transparent";
+      toggleBtn.style.backgroundColor = "rgba(255,255,255,0.2)";
     });
 
     let minimized = false;
@@ -415,7 +349,7 @@ function createFloatingDisplay() {
     // Add heading for minimized state
     const heading = document.createElement("div");
     heading.style.fontWeight = "600";
-    heading.style.color = titleColor;
+    heading.style.color = "white";
     heading.style.fontSize = "15px";
     heading.style.paddingRight = "20px";
     heading.textContent = "Receipt Summary";
