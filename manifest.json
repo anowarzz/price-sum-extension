@@ -1,5 +1,5 @@
 {
-  "name": "PriceSum",
+  "name": "Price Field Sum",
   "version": "1.0.0",
   "description": "Automatically sums up entered prices in the price input fields of a entire webpage.",
   "author": "anowarzz",

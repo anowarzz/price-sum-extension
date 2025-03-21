@@ -1,15 +1,107 @@
-
+// Price Entry Verification Script
 
 // Global variables to track price inputs
 let totalSum = 0;
 let itemCount = 0;
 let displayDiv = null;
 let extensionActive = true;
+const isMturkPage = window.location.hostname.includes('mturk.com');
 
 // Function to handle price input changes
 function handlePriceInputChange(event) {
   if (!extensionActive) return;
   calculateTotals();
+}
+
+// Function to scan frames for price inputs
+function scanFramesForPriceInputs() {
+  let frames = [];
+  try {
+    // Try to get all frames
+    frames = Array.from(document.querySelectorAll('iframe'));
+  } catch (e) {
+    console.error("Error accessing frames:", e);
+    return [];
+  }
+  
+  let allPriceInputs = [];
+  
+  frames.forEach(frame => {
+    try {
+      // Try to access frame content
+      const frameDoc = frame.contentDocument || frame.contentWindow?.document;
+      if (!frameDoc) return;
+      
+      // Look for price inputs in the frame
+      const frameInputs = frameDoc.querySelectorAll('input');
+      frameInputs.forEach(input => {
+        if (isPriceField(input)) {
+          allPriceInputs.push(input);
+        }
+      });
+    } catch (e) {
+      // Cross-origin restrictions may prevent access
+      console.log("Could not access iframe content:", e);
+    }
+  });
+  
+  return allPriceInputs;
+}
+
+// Function to check if an input is a price field
+function isPriceField(input) {
+  // Check class
+  if (
+    input.className &&
+    (input.className.includes("price") ||
+      input.className.includes("Price") ||
+      input.className.includes("PRICE"))
+  ) {
+    return true;
+  }
+
+  // Check data-type
+  if (
+    input.dataset.type &&
+    (input.dataset.type === "price" ||
+      input.dataset.type === "Price" ||
+      input.dataset.type === "PRICE")
+  ) {
+    return true;
+  }
+
+  // Check name
+  if (
+    input.name &&
+    (input.name.includes("price") ||
+      input.name.includes("Price") ||
+      input.name.includes("PRICE"))
+  ) {
+    return true;
+  }
+
+  // Check id
+  if (
+    input.id &&
+    (input.id.includes("price") ||
+      input.id.includes("Price") ||
+      input.id.includes("PRICE"))
+  ) {
+    return true;
+  }
+
+  // Check placeholder
+  if (
+    input.placeholder &&
+    (input.placeholder.includes("price") ||
+      input.placeholder.includes("Price") ||
+      input.placeholder.includes("PRICE") ||
+      input.placeholder.includes("$"))
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 // Function to calculate totals from all price inputs
@@ -79,12 +171,19 @@ function calculateTotals() {
           input.placeholder &&
           (input.placeholder.includes("price") ||
             input.placeholder.includes("Price") ||
-            input.placeholder.includes("PRICE"))
+            input.placeholder.includes("PRICE") ||
+            input.placeholder.includes("$"))
         ) {
           priceInputs.push(input);
           return;
         }
       });
+      
+      // If on MTurk and still no price inputs found, check iframes
+      if (isMturkPage && priceInputs.length === 0) {
+        const frameInputs = scanFramesForPriceInputs();
+        priceInputs = priceInputs.concat(frameInputs);
+      }
     }
 
     let sum = 0;
@@ -354,63 +453,10 @@ function updateFloatingDisplay() {
 // Initialize event listeners for price inputs
 function initPriceTracking() {
   try {
+    console.log("Initializing price tracking. MTurk page:", isMturkPage);
+    
     // Create the floating display (initially hidden)
     createFloatingDisplay();
-
-    // Function to check if an input is a price field
-    function isPriceField(input) {
-      // Check class
-      if (
-        input.className &&
-        (input.className.includes("price") ||
-          input.className.includes("Price") ||
-          input.className.includes("PRICE"))
-      ) {
-        return true;
-      }
-
-      // Check data-type
-      if (
-        input.dataset.type &&
-        (input.dataset.type === "price" ||
-          input.dataset.type === "Price" ||
-          input.dataset.type === "PRICE")
-      ) {
-        return true;
-      }
-
-      // Check name
-      if (
-        input.name &&
-        (input.name.includes("price") ||
-          input.name.includes("Price") ||
-          input.name.includes("PRICE"))
-      ) {
-        return true;
-      }
-
-      // Check id
-      if (
-        input.id &&
-        (input.id.includes("price") ||
-          input.id.includes("Price") ||
-          input.id.includes("PRICE"))
-      ) {
-        return true;
-      }
-
-      // Check placeholder
-      if (
-        input.placeholder &&
-        (input.placeholder.includes("price") ||
-          input.placeholder.includes("Price") ||
-          input.placeholder.includes("PRICE"))
-      ) {
-        return true;
-      }
-
-      return false;
-    }
 
     // Add event listeners to existing price inputs
     const allInputs = document.querySelectorAll("input");
@@ -423,12 +469,32 @@ function initPriceTracking() {
         input.addEventListener("change", handlePriceInputChange);
       }
     });
+    
+    // If on MTurk, also check iframes
+    if (isMturkPage && !priceFieldsFound) {
+      console.log("Checking frames for price inputs");
+      const frameInputs = scanFramesForPriceInputs();
+      
+      if (frameInputs.length > 0) {
+        priceFieldsFound = true;
+        frameInputs.forEach(input => {
+          try {
+            input.addEventListener("input", handlePriceInputChange);
+            input.addEventListener("change", handlePriceInputChange);
+          } catch (e) {
+            console.log("Could not add event listener to frame input:", e);
+          }
+        });
+      }
+    }
 
     // Only show the display if price fields were found
     if (priceFieldsFound) {
       showFloatingDisplay();
+      console.log("Price fields found, showing floating display");
     } else {
       hideFloatingDisplay();
+      console.log("No price fields found, keeping floating display hidden");
     }
 
     // Set up mutation observer to detect new price inputs
@@ -480,39 +546,38 @@ function initPriceTracking() {
 
     // Calculate initial totals
     calculateTotals();
-    
-    // Add error handling to chrome runtime
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (!extensionActive) return false;
-      
-      try {
-        if (message.action === "getTotals") {
-          // Check if any price fields exist
-          const priceInputs = document.querySelectorAll(
-            'input[data-type="price"].price, input[class*="price"], input[id*="price"], input[name*="price"], input[placeholder*="price"]'
-          );
-          
-          // Send current totals back to popup
-          sendResponse({
-            data: {
-              sum: totalSum.toFixed(2),
-              count: itemCount,
-              fieldsFound: priceInputs.length > 0
-            },
-          });
-        }
-        return true; // Required for asynchronous response
-      } catch (e) {
-        handleExtensionInvalidated();
-        return false;
-      }
-    });
-    
   } catch (e) {
     console.error("Error initializing price tracking:", e);
     handleExtensionInvalidated();
   }
 }
+
+// Message handler for communication with popup
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!extensionActive) return false;
+  
+  try {
+    if (message.action === "getTotals") {
+      // Check if any price fields exist
+      const priceInputs = document.querySelectorAll(
+        'input[data-type="price"].price, input[class*="price"], input[id*="price"], input[name*="price"], input[placeholder*="price"]'
+      );
+      
+      // Send current totals back to popup
+      sendResponse({
+        data: {
+          sum: totalSum.toFixed(2),
+          count: itemCount,
+          fieldsFound: priceInputs.length > 0
+        },
+      });
+    }
+    return true; // Required for asynchronous response
+  } catch (e) {
+    handleExtensionInvalidated();
+    return false;
+  }
+});
 
 // Add a listener to detect extension invalidation early
 try {
@@ -527,15 +592,28 @@ try {
   handleExtensionInvalidated();
 }
 
-// Start the script when the page is fully loaded
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", function() {
+// For MTurk, use delayed initialization to catch dynamically loaded content
+if (isMturkPage) {
+  console.log("Setting up delayed checks for MTurk");
+  
+  // Initial load
+  initPriceTracking();
+  
+  // Additional delayed checks
+  setTimeout(initPriceTracking, 1000);
+  setTimeout(initPriceTracking, 3000);
+  setTimeout(initPriceTracking, 5000);
+} else {
+  // Start the script when the page is fully loaded
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function() {
+      if (extensionActive) {
+        initPriceTracking();
+      }
+    });
+  } else {
     if (extensionActive) {
       initPriceTracking();
     }
-  });
-} else {
-  if (extensionActive) {
-    initPriceTracking();
   }
 }
