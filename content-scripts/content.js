@@ -12,21 +12,76 @@ function handlePriceInputChange(event) {
 
 // Function to calculate totals from all price inputs
 function calculateTotals() {
-  const priceInputs = document.querySelectorAll(
+  // Initialize with an empty array to store all price inputs
+  let priceInputs = [];
+
+  // First check for explicitly marked price fields
+  let explicitPriceInputs = document.querySelectorAll(
     'input[data-type="price"].price'
   );
 
-  // If no explicitly marked price fields are found, try to intelligently identify price fields
-  if (priceInputs.length === 0) {
-    // Look for inputs with price-related attributes or context
-    priceInputs = document.querySelectorAll(`
-      input[data-type="price"], 
-      input.price,
-      input[type="number"][name*="price"], 
-      input[type="text"][name*="price"],
-      input[type="number"][id*="price"], 
-      input[type="text"][id*="price"],
-    `);
+  if (explicitPriceInputs.length > 0) {
+    priceInputs = explicitPriceInputs;
+  } else {
+    // If none found, look for case-insensitive "price" in various attributes
+    const allInputs = document.querySelectorAll("input");
+
+    allInputs.forEach((input) => {
+      // Check class
+      if (
+        input.className &&
+        (input.className.includes("price") ||
+          input.className.includes("Price") ||
+          input.className.includes("PRICE"))
+      ) {
+        priceInputs.push(input);
+        return;
+      }
+
+      // Check data-type
+      if (
+        input.dataset.type &&
+        (input.dataset.type === "price" ||
+          input.dataset.type === "Price" ||
+          input.dataset.type === "PRICE")
+      ) {
+        priceInputs.push(input);
+        return;
+      }
+
+      // Check name
+      if (
+        input.name &&
+        (input.name.includes("price") ||
+          input.name.includes("Price") ||
+          input.name.includes("PRICE"))
+      ) {
+        priceInputs.push(input);
+        return;
+      }
+
+      // Check id
+      if (
+        input.id &&
+        (input.id.includes("price") ||
+          input.id.includes("Price") ||
+          input.id.includes("PRICE"))
+      ) {
+        priceInputs.push(input);
+        return;
+      }
+
+      // Check placeholder
+      if (
+        input.placeholder &&
+        (input.placeholder.includes("price") ||
+          input.placeholder.includes("Price") ||
+          input.placeholder.includes("PRICE"))
+      ) {
+        priceInputs.push(input);
+        return;
+      }
+    });
   }
 
   let sum = 0;

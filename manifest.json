@@ -1,5 +1,5 @@
 {
-  "name": "Receipt Entry Verifier",
+  "name": "PriceSum",
   "version": "1.0.0",
   "description": "Automatically sums up entered prices to verify against receipt totals",
   "manifest_version": 3,
