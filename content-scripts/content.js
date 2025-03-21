@@ -95,8 +95,7 @@ function isPriceField(input) {
     input.placeholder &&
     (input.placeholder.includes("price") ||
       input.placeholder.includes("Price") ||
-      input.placeholder.includes("PRICE") 
-   )
+      input.placeholder.includes("PRICE"))
   ) {
     return true;
   }
@@ -171,8 +170,7 @@ function calculateTotals() {
           input.placeholder &&
           (input.placeholder.includes("price") ||
             input.placeholder.includes("Price") ||
-            input.placeholder.includes("PRICE") 
-       )
+            input.placeholder.includes("PRICE"))
         ) {
           priceInputs.push(input);
           return;
@@ -593,16 +591,39 @@ try {
   handleExtensionInvalidated();
 }
 
-// For MTurk, use delayed initialization to catch dynamically loaded content
+// For MTurk, use special handling to force show the display
 if (isMturkPage) {
-  console.log("Setting up delayed checks for MTurk");
+  console.log("Setting up special handling for MTurk");
   
   // Initial load
   initPriceTracking();
   
-  // Additional delayed checks
-  setTimeout(initPriceTracking, 1000);
-  setTimeout(initPriceTracking, 3000);
+  // Force show the floating display on MTurk pages after a short delay
+  setTimeout(() => {
+    console.log("Applying MTurk-specific display logic");
+    
+    // Create display if it doesn't exist
+    if (!displayDiv) {
+      createFloatingDisplay();
+    }
+    
+    // Force show the display
+    if (displayDiv) {
+      console.log("Forcing display to be visible for MTurk");
+      showFloatingDisplay();
+      
+      // Set initial values
+      const countElement = document.getElementById("item-count");
+      const totalElement = document.getElementById("price-total");
+      
+      if (countElement && totalElement) {
+        countElement.textContent = "0";
+        totalElement.textContent = "0.00";
+      }
+    }
+  }, 2000);
+  
+  // Additional check with reduced frequency
   setTimeout(initPriceTracking, 5000);
 } else {
   // Start the script when the page is fully loaded
