@@ -591,40 +591,120 @@ try {
   handleExtensionInvalidated();
 }
 
-// For MTurk, use special handling to force show the display
+// For MTurk pages, use a more aggressive approach
 if (isMturkPage) {
   console.log("Setting up special handling for MTurk");
   
   // Initial load
   initPriceTracking();
   
-  // Force show the floating display on MTurk pages after a short delay
-  setTimeout(() => {
-    console.log("Applying MTurk-specific display logic");
+  // Create a MutationObserver to watch for any changes to the DOM
+  const mturkObserver = new MutationObserver((mutations) => {
+    // Look for inputs that might be price fields
+    const allInputs = document.querySelectorAll("input[type='text'], input[type='number']");
+    let foundPriceFields = false;
     
-    // Create display if it doesn't exist
+    allInputs.forEach(input => {
+      // Apply very loose criteria for MTurk price fields
+      if (input.value && !isNaN(parseFloat(input.value))) {
+        // This is potentially a price field
+        foundPriceFields = true;
+        input.addEventListener("input", handlePriceInputChange);
+        input.addEventListener("change", handlePriceInputChange);
+      }
+      
+      // Add placeholder and pattern checks for empty fields
+      if (input.placeholder && 
+          (input.placeholder.includes("$") || 
+           input.placeholder.includes("price") || 
+           input.placeholder.includes("cost"))) {
+        foundPriceFields = true;
+        input.addEventListener("input", handlePriceInputChange);
+        input.addEventListener("change", handlePriceInputChange);
+      }
+      
+      if (input.pattern && input.pattern.includes("[0-9]")) {
+        foundPriceFields = true;
+        input.addEventListener("input", handlePriceInputChange);
+        input.addEventListener("change", handlePriceInputChange);
+      }
+    });
+    
+    // If we found any price fields, recalculate totals
+    if (foundPriceFields) {
+      calculateTotals();
+    }
+    
+    // Make sure display is shown on MTurk regardless
     if (!displayDiv) {
       createFloatingDisplay();
     }
+    showFloatingDisplay();
+  });
+  
+  // Start watching for changes immediately
+  mturkObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    characterData: true
+  });
+  
+  // Force show the display regardless of whether fields are found
+  setTimeout(() => {
+    if (!displayDiv) {
+      createFloatingDisplay();
+    }
+    showFloatingDisplay();
     
-    // Force show the display
-    if (displayDiv) {
-      console.log("Forcing display to be visible for MTurk");
-      showFloatingDisplay();
-      
-      // Set initial values
-      const countElement = document.getElementById("item-count");
-      const totalElement = document.getElementById("price-total");
-      
-      if (countElement && totalElement) {
-        countElement.textContent = "0";
-        totalElement.textContent = "0.00";
+    // Try to hook into MTurk's input fields directly
+    document.querySelectorAll("input").forEach(input => {
+      input.addEventListener("input", () => {
+        // For any input value change on MTurk, recalculate
+        setTimeout(calculateTotals, 100);
+      });
+      input.addEventListener("change", () => {
+        setTimeout(calculateTotals, 100);
+      });
+    });
+    
+    // Also look for iframes and try to add event listeners to them
+    document.querySelectorAll("iframe").forEach(iframe => {
+      try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (!iframeDoc) return;
+        
+        iframeDoc.querySelectorAll("input").forEach(input => {
+          input.addEventListener("input", () => {
+            setTimeout(calculateTotals, 100);
+          });
+          input.addEventListener("change", () => {
+            setTimeout(calculateTotals, 100);
+          });
+        });
+      } catch (e) {
+        // Ignore cross-origin errors
       }
+    });
+    
+    // Set initial values if needed
+    const countElement = document.getElementById("item-count");
+    const totalElement = document.getElementById("price-total");
+    
+    if (countElement && totalElement && itemCount === 0) {
+      countElement.textContent = "0";
+      totalElement.textContent = "0.00";
     }
   }, 2000);
   
-  // Additional check with reduced frequency
-  setTimeout(initPriceTracking, 5000);
+  // Periodic recalculation every 3 seconds for MTurk
+  const mturkInterval = setInterval(() => {
+    if (!extensionActive) {
+      clearInterval(mturkInterval);
+      return;
+    }
+    calculateTotals();
+  }, 3000);
 } else {
   // Start the script when the page is fully loaded
   if (document.readyState === "loading") {
