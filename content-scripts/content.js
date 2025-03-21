@@ -1,51 +1,15 @@
-// Price Entry Verification Script
+
 
 // Global variables to track price inputs
 let totalSum = 0;
 let itemCount = 0;
 let displayDiv = null;
 let extensionActive = true;
-const isMturkPage = window.location.hostname.includes('mturk.com');
 
 // Function to handle price input changes
 function handlePriceInputChange(event) {
   if (!extensionActive) return;
   calculateTotals();
-}
-
-// Function to scan frames for price inputs
-function scanFramesForPriceInputs() {
-  let frames = [];
-  try {
-    // Try to get all frames
-    frames = Array.from(document.querySelectorAll('iframe'));
-  } catch (e) {
-    console.error("Error accessing frames:", e);
-    return [];
-  }
-  
-  let allPriceInputs = [];
-  
-  frames.forEach(frame => {
-    try {
-      // Try to access frame content
-      const frameDoc = frame.contentDocument || frame.contentWindow?.document;
-      if (!frameDoc) return;
-      
-      // Look for price inputs in the frame
-      const frameInputs = frameDoc.querySelectorAll('input');
-      frameInputs.forEach(input => {
-        if (isPriceField(input)) {
-          allPriceInputs.push(input);
-        }
-      });
-    } catch (e) {
-      // Cross-origin restrictions may prevent access
-      console.log("Could not access iframe content:", e);
-    }
-  });
-  
-  return allPriceInputs;
 }
 
 // Function to check if an input is a price field
@@ -176,12 +140,6 @@ function calculateTotals() {
           return;
         }
       });
-      
-      // If on MTurk and still no price inputs found, check iframes
-      if (isMturkPage && priceInputs.length === 0) {
-        const frameInputs = scanFramesForPriceInputs();
-        priceInputs = priceInputs.concat(frameInputs);
-      }
     }
 
     let sum = 0;
@@ -452,7 +410,7 @@ function updateFloatingDisplay() {
 // Initialize event listeners for price inputs
 function initPriceTracking() {
   try {
-    console.log("Initializing price tracking. MTurk page:", isMturkPage);
+    console.log("Initializing price tracking");
     
     // Create the floating display (initially hidden)
     createFloatingDisplay();
@@ -468,24 +426,6 @@ function initPriceTracking() {
         input.addEventListener("change", handlePriceInputChange);
       }
     });
-    
-    // If on MTurk, also check iframes
-    if (isMturkPage && !priceFieldsFound) {
-      console.log("Checking frames for price inputs");
-      const frameInputs = scanFramesForPriceInputs();
-      
-      if (frameInputs.length > 0) {
-        priceFieldsFound = true;
-        frameInputs.forEach(input => {
-          try {
-            input.addEventListener("input", handlePriceInputChange);
-            input.addEventListener("change", handlePriceInputChange);
-          } catch (e) {
-            console.log("Could not add event listener to frame input:", e);
-          }
-        });
-      }
-    }
 
     // Only show the display if price fields were found
     if (priceFieldsFound) {
@@ -591,90 +531,15 @@ try {
   handleExtensionInvalidated();
 }
 
-// For MTurk pages, use a lightweight approach
-if (isMturkPage) {
-  console.log("Setting up lightweight handling for MTurk");
-  
-  // Initial load
-  initPriceTracking();
-  
-  // Just force show the display for MTurk after a short delay
-  setTimeout(() => {
-    console.log("Setting up MTurk display");
-    
-    // Create display if needed
-    if (!displayDiv) {
-      createFloatingDisplay();
-    }
-    
-    // Force show
-    showFloatingDisplay();
-    
-    // Add a note for users
-    const content = document.getElementById("price-sum-content");
-    if (content) {
-      const noteDiv = document.createElement("div");
-      noteDiv.style.fontSize = "10px";
-      noteDiv.style.marginTop = "8px";
-      noteDiv.style.color = "rgba(255,255,255,0.7)";
-      noteDiv.textContent = "Enter prices in fields to calculate";
-      content.appendChild(noteDiv);
-    }
-    
-    // Use a lighter approach - just watch for value changes
-    let inputsProcessed = new WeakSet();
-    
-    function addInputListeners() {
-      // Only process number inputs or text inputs that look like they could be prices
-      const potentialPriceInputs = document.querySelectorAll(
-        "input[type='number'], input[pattern*='[0-9]']"
-      );
-      
-      potentialPriceInputs.forEach(input => {
-        if (!inputsProcessed.has(input)) {
-          inputsProcessed.add(input);
-          input.addEventListener("input", handlePriceInputChange);
-          input.addEventListener("change", handlePriceInputChange);
-        }
-      });
-    }
-    
-    // Run once immediately
-    addInputListeners();
-    
-    // Run again after a moment
-    setTimeout(addInputListeners, 3000);
-  }, 1500);
-  
-  // Use a very lightweight mutation observer that only runs occasionally
-  let pendingMutation = false;
-  const lightMturkObserver = new MutationObserver(() => {
-    if (!pendingMutation) {
-      pendingMutation = true;
-      // Debounce - only run once every 2 seconds at most
-      setTimeout(() => {
-        pendingMutation = false;
-        calculateTotals();
-      }, 2000);
-    }
-  });
-  
-  // Start observing with minimal configuration
-  lightMturkObserver.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-} else {
-  // Start the script when the page is fully loaded
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function() {
-      if (extensionActive) {
-        initPriceTracking();
-      }
-    });
-  } else {
+// Start the script when the page is fully loaded
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", function() {
     if (extensionActive) {
       initPriceTracking();
     }
+  });
+} else {
+  if (extensionActive) {
+    initPriceTracking();
   }
 }
